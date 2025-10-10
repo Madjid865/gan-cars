@@ -101,8 +101,11 @@ class SystemeGANComplet:
             else:
                 output_resized = output
             
-            # Score du discriminateur
-            score = self.discriminator(output_resized).item()
+            # Score du discriminateur — uniquement pour la dernière couche (3 canaux)
+            if output.shape[1] == 3:
+                score = self.discriminator(output_resized).item()
+            else:
+                score = 0.0  # Ne pas évaluer les couches intermédiaires
             
             # Afficher l'image
             ax_image.clear()
