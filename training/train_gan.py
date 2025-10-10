@@ -71,7 +71,7 @@ class CarDataset(Dataset):
         # Parcourir tous les dossiers RÉCURSIVEMENT
         for root_dir in root_dirs:
             if not os.path.exists(root_dir):
-                print(f"ATTENTION: {root_dir} n'existe pas!")
+                print(f"⚠️  ATTENTION: {root_dir} n'existe pas!")
                 continue
             
             print(f"🔍 Recherche d'images dans: {root_dir}")
@@ -95,7 +95,7 @@ class CarDataset(Dataset):
                 break
         
         if len(self.images) == 0:
-            raise ValueError("Aucune image trouvée dans les dossiers spécifiés!")
+            raise ValueError("❌ Aucune image trouvée dans les dossiers spécifiés!")
         
         print(f"✓ {len(self.images)} images chargées (max: {max_images})")
     
@@ -112,7 +112,7 @@ class CarDataset(Dataset):
             
             return image
         except Exception as e:
-            print(f"Erreur lors du chargement de {img_path}: {e}")
+            print(f"⚠️  Erreur lors du chargement de {img_path}: {e}")
             # Retourner une image noire en cas d'erreur
             return torch.zeros(3, IMG_SIZE, IMG_SIZE)
 
@@ -162,13 +162,13 @@ def train_generator(dataset_path, save_dir='models'):
     print("\n" + "="*70)
     print("CONFIGURATION D'ENTRAÎNEMENT OPTIMISÉE")
     print("="*70)
-    print(f"Images: {MAX_IMAGES}")
-    print(f"Epochs: {EPOCHS}")
-    print(f"Batch size: {BATCH_SIZE}")
-    print(f"Learning Rate Générateur: {LEARNING_RATE_G}")
-    print(f"Learning Rate Discriminateur: {LEARNING_RATE_D} (4x plus lent!)")
-    print(f"Label smoothing: Activé (0.9/0.1)")
-    print(f"Ratio G/D: 2:1 (générateur entraîné 2x plus)")
+    print(f"📊 Images: {MAX_IMAGES}")
+    print(f"📊 Epochs: {EPOCHS}")
+    print(f"📊 Batch size: {BATCH_SIZE}")
+    print(f"📊 Learning Rate Générateur: {LEARNING_RATE_G}")
+    print(f"📊 Learning Rate Discriminateur: {LEARNING_RATE_D} (4x plus lent!)")
+    print(f"📊 Label smoothing: Activé (0.9/0.1)")
+    print(f"📊 Ratio G/D: 2:1 (générateur entraîné 2x plus)")
     print("="*70 + "\n")
     
     # Optimiseurs avec learning rates DIFFÉRENTS
@@ -238,9 +238,9 @@ def train_generator(dataset_path, save_dir='models'):
                 
                 # Avertissement si déséquilibre détecté
                 if loss_d.item() < 0.3:
-                    print("Discriminateur trop fort!")
+                    print("  ⚠️  Discriminateur trop fort!")
                 if loss_g.item() > 4.0:
-                    print("Générateur en difficulté!")
+                    print("  ⚠️  Générateur en difficulté!")
         
         # Sauvegarder des exemples générés
         if (epoch + 1) % 10 == 0:
@@ -274,10 +274,10 @@ def train_generator(dataset_path, save_dir='models'):
     torch.save(discriminator.state_dict(), f'{save_dir}/discriminator_final.pth')
     
     print("\n" + "="*70)
-    print("ENTRAÎNEMENT TERMINÉ!")
+    print("✅ ENTRAÎNEMENT TERMINÉ!")
     print("="*70)
-    print(f"Modèles sauvegardés dans: {save_dir}/")
-    print(f"Échantillons dans: generated_samples/")
+    print(f"📄 Modèles sauvegardés dans: {save_dir}/")
+    print(f"📄 Échantillons dans: generated_samples/")
     print("="*70)
     
     return generator, discriminator
@@ -288,7 +288,7 @@ if __name__ == "__main__":
     # ============================================================
     
     # OPTION 1 : Un seul dossier (cherchera dans tous les sous-dossiers)
-    DATASET_PATH = "/home/madjid/Documents/gan_cars_project/training/train"
+    DATASET_PATH = "C:/Users/naimi/Documents/archive/train"
     
     # OPTION 2 : Plusieurs dossiers différents (décommentez si besoin)
     # DATASET_PATH = [
@@ -307,7 +307,7 @@ if __name__ == "__main__":
     # Vérifier si au moins un dossier existe
     if isinstance(DATASET_PATH, str):
         if not os.path.exists(DATASET_PATH):
-            print(f"ERREUR: Le dossier {DATASET_PATH} n'existe pas!")
+            print(f"❌ ERREUR: Le dossier {DATASET_PATH} n'existe pas!")
             print("Veuillez modifier DATASET_PATH avec le chemin vers vos images de voitures.")
         else:
             print(f"✓ Dossier trouvé: {DATASET_PATH}\n")
@@ -316,7 +316,7 @@ if __name__ == "__main__":
         # C'est une liste de chemins
         existing_paths = [p for p in DATASET_PATH if os.path.exists(p)]
         if not existing_paths:
-            print("ERREUR: Aucun des dossiers spécifiés n'existe!")
+            print("❌ ERREUR: Aucun des dossiers spécifiés n'existe!")
             print("Dossiers spécifiés:")
             for path in DATASET_PATH:
                 print(f"  - {path}")
