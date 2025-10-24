@@ -173,14 +173,17 @@ def main():
     if args.resume and Path(args.resume).is_file():
         ckpt = torch.load(args.resume, map_location="cpu")
         G.load_state_dict(ckpt["G"])
+        D.load_state_dict(ckpt["D"])  # ← Ajouter
         opt_g.load_state_dict(ckpt["opt_g"])
-        print(f"[Resume] Chargé: {args.resume}")
+        opt_d.load_state_dict(ckpt["opt_d"])  # ← Ajouter
+        start_epoch = ckpt["epoch"]  # ← Ajouter
+        print(f"[Resume] Chargé: {args.resume}, reprend à epoch {start_epoch}")
 
     # Logs pour les courbes
     train_loss_d_hist, train_loss_g_hist = [], []
     val_loss_d_hist,   val_loss_g_hist   = [], []
 
-    for epoch in range(args.epochs):
+    for epoch in range(start_epoch, args.epochs):
         G.train(); D.train()
         running_d, running_g, seen = 0.0, 0.0, 0
 
