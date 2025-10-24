@@ -169,15 +169,19 @@ def main():
     torch.manual_seed(1337)
     fixed_noise = torch.randn(64, args.latent_dim, 1, 1, device=device)
 
-    # Reprise éventuelle
+    # Reprise éventuelle (CORRECTION ICI)
+    start_epoch = 0  # Valeur par défaut pour nouvel entraînement
+    
     if args.resume and Path(args.resume).is_file():
         ckpt = torch.load(args.resume, map_location="cpu")
         G.load_state_dict(ckpt["G"])
-        D.load_state_dict(ckpt["D"])  # ← Ajouter
+        D.load_state_dict(ckpt["D"])
         opt_g.load_state_dict(ckpt["opt_g"])
-        opt_d.load_state_dict(ckpt["opt_d"])  # ← Ajouter
-        start_epoch = ckpt["epoch"]  # ← Ajouter
-        print(f"[Resume] Chargé: {args.resume}, reprend à epoch {start_epoch}")
+        opt_d.load_state_dict(ckpt["opt_d"])
+        start_epoch = ckpt["epoch"]
+        print(f"✔ [Resume] Chargé: {args.resume}, reprend à epoch {start_epoch}")
+    else:
+        print(f"✔ [Nouveau entraînement] Démarre à epoch 0")
 
     # Logs pour les courbes
     train_loss_d_hist, train_loss_g_hist = [], []

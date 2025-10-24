@@ -1,0 +1,43 @@
+# ========================================
+# 1. MONTER DRIVE
+# ========================================
+from google.colab import drive
+drive.mount('/content/drive')
+
+# ========================================
+# 2. (si pas déjà fait) CRÉER DOSSIERS 
+# ========================================
+!mkdir -p /content/drive/MyDrive/gan_cars/checkpoints
+!mkdir -p /content/drive/MyDrive/gan_cars/generated_samples
+!mkdir -p /content/drive/MyDrive/gan_cars/plots
+
+# ========================================
+# 3. CLONER REPO
+# ========================================
+!git clone https://github.com/Madjid865/gan-cars.git
+%cd gan-cars
+
+# ========================================
+# 4. VÉRIFIER DATASET
+# ========================================
+print("📊 Nombre d'images :")
+!ls /content/drive/MyDrive/gan_cars/train/real/ | wc -l
+
+print("\n📸 Exemple d'images :")
+!ls /content/drive/MyDrive/gan_cars/train/real/ | head -5
+
+# ========================================
+# 5. VÉRIFIER GPU
+# ========================================
+!nvidia-smi
+
+# ========================================
+# 6. ENTRAÎNEMENT
+# ========================================
+!python train_gan.py \
+  --data_root /content/drive/MyDrive/gan_cars/train \
+  --epochs 50 \
+  --batch_size 64 \
+  --out_dir /content/drive/MyDrive/gan_cars/checkpoints \
+  --samples_dir /content/drive/MyDrive/gan_cars/generated_samples \
+  --plots_dir /content/drive/MyDrive/gan_cars/plots
