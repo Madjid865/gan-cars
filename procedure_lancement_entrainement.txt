@@ -7,7 +7,7 @@ from google.colab import drive
 drive.mount('/content/drive')
 
 # ========================================
-# 2. (si pas déjà fait) CRÉER DOSSIERS 
+# 2. (si pas déjà fait) CRÉER DOSSIERS
 # ========================================
 !mkdir -p /content/drive/MyDrive/gan_cars/checkpoints
 !mkdir -p /content/drive/MyDrive/gan_cars/generated_samples
