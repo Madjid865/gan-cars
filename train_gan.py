@@ -8,6 +8,8 @@ import torch.optim as optim
 from torch.amp import autocast, GradScaler
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms, utils as vutils
+import glob
+import re
 
 # --- pour sauvegarder les graphes sans affichage ---
 import matplotlib
@@ -50,6 +52,28 @@ class Generator(nn.Module):
     def forward(self, z: torch.Tensor) -> torch.Tensor:
         return self.main(z)
 
+# -----------------------
+# Trouver le dernier checkpoint
+# -----------------------
+def find_latest_checkpoint(out_dir: str) -> str:
+    """
+    Cherche le dernier checkpoint dans out_dir.
+    Retourne le chemin ou "" si aucun checkpoint trouvé.
+    """
+    pattern = os.path.join(out_dir, "ckpt_*.pth")
+    ckpts = glob.glob(pattern)
+    
+    if not ckpts:
+        return ""
+    
+    # Extraire les numéros d'epoch et trouver le max
+    def extract_epoch(path):
+        match = re.search(r'ckpt_(\d+)\.pth', path)
+        return int(match.group(1)) if match else 0
+    
+    latest = max(ckpts, key=extract_epoch)
+    return latest
+
 # -------------
 # Entrée / Args
 # -------------
@@ -72,7 +96,12 @@ def get_args():
     p.add_argument("--samples_dir", type=str, default="generated_samples")
     p.add_argument("--plots_dir", type=str, default="plots")
     p.add_argument("--num_workers", type=int, default=2)
-    p.add_argument("--resume", type=str, default="")
+    p.add_argument("--resume", type=str, default="",
+                   help="Chemin vers checkpoint. Si vide, cherche automatiquement le dernier dans --out_dir")
+    p.add_argument("--force_restart", action="store_true",
+                   help="Force à redémarrer de zéro même s'il existe des checkpoints")
+    p.add_argument("--plot_every", type=int, default=10,
+                   help="Fréquence de génération des graphiques (en epochs)")
     return p.parse_args()
 
 # ---------------
@@ -137,6 +166,67 @@ def evaluate_val(G, D, val_loader, device, criterion, latent_dim):
 
     return running_d / count, running_g / count
 
+# -----------------------
+# Sauvegarde des historiques de loss
+# -----------------------
+def save_loss_history(out_dir: str, train_d, train_g, val_d, val_g):
+    """Sauvegarde l'historique des loss dans un fichier JSON."""
+    import json
+    history = {
+        "train_loss_d": train_d,
+        "train_loss_g": train_g,
+        "val_loss_d": val_d,
+        "val_loss_g": val_g
+    }
+    history_path = os.path.join(out_dir, "loss_history.json")
+    with open(history_path, 'w') as f:
+        json.dump(history, f)
+
+def load_loss_history(out_dir: str):
+    """Charge l'historique des loss depuis le fichier JSON."""
+    import json
+    history_path = os.path.join(out_dir, "loss_history.json")
+    if os.path.exists(history_path):
+        with open(history_path, 'r') as f:
+            history = json.load(f)
+        return (history["train_loss_d"], history["train_loss_g"],
+                history["val_loss_d"], history["val_loss_g"])
+    return [], [], [], []
+
+# -----------------------
+# Plot des courbes
+# -----------------------
+def plot_losses(plots_dir: str, start_epoch: int, current_epoch: int, 
+                train_d, train_g, val_d, val_g):
+    """Génère et sauvegarde les graphiques de loss."""
+    epochs = range(start_epoch + 1, current_epoch + 1)
+    
+    # Discriminator
+    plt.figure(figsize=(10, 6))
+    plt.plot(epochs, train_d, label="train D", linewidth=2)
+    plt.plot(epochs, val_d, label="val D", linewidth=2)
+    plt.xlabel("epoch", fontsize=12)
+    plt.ylabel("loss", fontsize=12)
+    plt.title(f"Discriminator loss (epoch {start_epoch+1}-{current_epoch})", fontsize=14)
+    plt.legend(fontsize=11)
+    plt.grid(True, linestyle="--", alpha=0.4)
+    d_path = f"{plots_dir}/loss_discriminator.png"
+    plt.savefig(d_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    
+    # Generator
+    plt.figure(figsize=(10, 6))
+    plt.plot(epochs, train_g, label="train G", linewidth=2)
+    plt.plot(epochs, val_g, label="val G", linewidth=2)
+    plt.xlabel("epoch", fontsize=12)
+    plt.ylabel("loss", fontsize=12)
+    plt.title(f"Generator loss (epoch {start_epoch+1}-{current_epoch})", fontsize=14)
+    plt.legend(fontsize=11)
+    plt.grid(True, linestyle="--", alpha=0.4)
+    g_path = f"{plots_dir}/loss_generator.png"
+    plt.savefig(g_path, dpi=150, bbox_inches="tight")
+    plt.close()
+
 # -------
 # Train
 # -------
@@ -169,23 +259,45 @@ def main():
     torch.manual_seed(1337)
     fixed_noise = torch.randn(64, args.latent_dim, 1, 1, device=device)
 
-    # Reprise éventuelle (CORRECTION ICI)
-    start_epoch = 0  # Valeur par défaut pour nouvel entraînement
+    # AUTO-REPRISE : Cherche automatiquement le dernier checkpoint
+    start_epoch = 0
+    resume_path = args.resume
     
-    if args.resume and Path(args.resume).is_file():
-        ckpt = torch.load(args.resume, map_location="cpu")
-        G.load_state_dict(ckpt["G"])
-        D.load_state_dict(ckpt["D"])
-        opt_g.load_state_dict(ckpt["opt_g"])
-        opt_d.load_state_dict(ckpt["opt_d"])
-        start_epoch = ckpt["epoch"]
-        print(f"✔ [Resume] Chargé: {args.resume}, reprend à epoch {start_epoch}")
+    if args.force_restart:
+        print("🔄 [Force Restart] Redémarre de zéro (--force_restart activé)")
+        train_loss_d_hist, train_loss_g_hist = [], []
+        val_loss_d_hist, val_loss_g_hist = [], []
     else:
-        print(f"✔ [Nouveau entraînement] Démarre à epoch 0")
-
-    # Logs pour les courbes
-    train_loss_d_hist, train_loss_g_hist = [], []
-    val_loss_d_hist,   val_loss_g_hist   = [], []
+        # Si pas de --resume fourni, cherche automatiquement
+        if not resume_path:
+            resume_path = find_latest_checkpoint(args.out_dir)
+        
+        # Charge le checkpoint s'il existe
+        if resume_path and Path(resume_path).is_file():
+            try:
+                ckpt = torch.load(resume_path, map_location="cpu")
+                G.load_state_dict(ckpt["G"])
+                D.load_state_dict(ckpt["D"])
+                opt_g.load_state_dict(ckpt["opt_g"])
+                opt_d.load_state_dict(ckpt["opt_d"])
+                start_epoch = ckpt["epoch"]
+                
+                # Charge aussi l'historique des loss
+                train_loss_d_hist, train_loss_g_hist, val_loss_d_hist, val_loss_g_hist = load_loss_history(args.out_dir)
+                
+                print(f"✅ [Auto-Resume] Chargé: {resume_path}")
+                print(f"   └─ Reprend à epoch {start_epoch}/{args.epochs}")
+                print(f"   └─ Historique de loss restauré ({len(train_loss_d_hist)} epochs)")
+            except Exception as e:
+                print(f"⚠️ Erreur lors du chargement de {resume_path}: {e}")
+                print("   └─ Démarre un nouvel entraînement")
+                start_epoch = 0
+                train_loss_d_hist, train_loss_g_hist = [], []
+                val_loss_d_hist, val_loss_g_hist = [], []
+        else:
+            print("✨ [Nouveau entraînement] Aucun checkpoint trouvé, démarre à epoch 0")
+            train_loss_d_hist, train_loss_g_hist = [], []
+            val_loss_d_hist, val_loss_g_hist = [], []
 
     for epoch in range(start_epoch, args.epochs):
         G.train(); D.train()
@@ -266,37 +378,23 @@ def main():
             "opt_d": opt_d.state_dict(),
             "epoch": epoch + 1
         }, f"{args.out_dir}/ckpt_{epoch+1:03d}.pth")
+        
+        # Sauvegarde l'historique des loss à chaque epoch (pour reprise)
+        save_loss_history(args.out_dir, train_loss_d_hist, train_loss_g_hist, 
+                         val_loss_d_hist, val_loss_g_hist)
+        
+        # Plot des courbes selon la fréquence définie ET au dernier epoch
+        if (epoch + 1) % args.plot_every == 0 or (epoch + 1) == args.epochs:
+            plot_losses(args.plots_dir, start_epoch, epoch + 1,
+                       train_loss_d_hist, train_loss_g_hist,
+                       val_loss_d_hist, val_loss_g_hist)
+            print(f"   📊 Graphiques mis à jour -> {args.plots_dir}/")
 
     # Poids finaux
     torch.save(G.state_dict(), f"{args.out_dir}/generator_final.pth")
     torch.save(D.state_dict(), f"{args.out_dir}/discriminator_final.pth")
     print("✔ Entraînement terminé. Poids enregistrés dans", args.out_dir)
-
-    # -----------------
-    # GRAPHE 1 : Discri
-    # -----------------
-    plt.figure()
-    plt.plot(range(1, args.epochs + 1), train_loss_d_hist, label="train D")
-    plt.plot(range(1, args.epochs + 1), val_loss_d_hist,   label="val D")
-    plt.xlabel("epoch"); plt.ylabel("loss")
-    plt.title("Discriminator loss (train vs val)")
-    plt.legend(); plt.grid(True, linestyle="--", alpha=0.4)
-    d_path = f"{args.plots_dir}/loss_discriminator.png"
-    plt.savefig(d_path, dpi=150, bbox_inches="tight")
-    print(f"✔ Graphe Discriminator -> {d_path}")
-
-    # -----------------
-    # GRAPHE 2 : Générateur
-    # -----------------
-    plt.figure()
-    plt.plot(range(1, args.epochs + 1), train_loss_g_hist, label="train G")
-    plt.plot(range(1, args.epochs + 1), val_loss_g_hist,   label="val G")
-    plt.xlabel("epoch"); plt.ylabel("loss")
-    plt.title("Generator loss (train vs val)")
-    plt.legend(); plt.grid(True, linestyle="--", alpha=0.4)
-    g_path = f"{args.plots_dir}/loss_generator.png"
-    plt.savefig(g_path, dpi=150, bbox_inches="tight")
-    print(f"✔ Graphe Generator -> {g_path}")
+    print(f"✔ Graphiques finaux dans {args.plots_dir}/")
 
 if __name__ == "__main__":
     main()
