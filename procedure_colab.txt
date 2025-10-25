@@ -36,8 +36,9 @@ print("\n📸 Exemple d'images :")
 # ========================================
 !python train_gan.py \
   --data_root /content/drive/MyDrive/gan_cars/train \
-  --epochs 50 \
-  --batch_size 64 \
+  --epochs 150 \
+  --plot_every 20 # pas defaut = 10
+  --batch_size 512 \
   --out_dir /content/drive/MyDrive/gan_cars/checkpoints \
   --samples_dir /content/drive/MyDrive/gan_cars/generated_samples \
   --plots_dir /content/drive/MyDrive/gan_cars/plots
