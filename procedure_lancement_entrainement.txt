@@ -1,4 +1,6 @@
 # ========================================
+## A. Entrainement sur google colab
+# ========================================
 # 1. MONTER DRIVE
 # ========================================
 from google.colab import drive
@@ -42,3 +44,10 @@ print("\n📸 Exemple d'images :")
   --out_dir /content/drive/MyDrive/gan_cars/checkpoints \
   --samples_dir /content/drive/MyDrive/gan_cars/generated_samples \
   --plots_dir /content/drive/MyDrive/gan_cars/plots
+
+
+# ========================================
+## B. Entrainement sur PC perso :
+# ========================================
+
+python train_gan.py --data_root ./data/train --epochs 150 --num_workers 4 --plot_every 20 --batch_size 128 --out_dir ./checkpoints --samples_dir ./generated_samples --plots_dir ./plots
