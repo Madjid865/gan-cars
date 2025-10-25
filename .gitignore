@@ -1,9 +1,3 @@
-__pycache__/
-*.pyc
-*.pkl
-*.pt
-.env
-.vscode/
-.idea/
-results/
-
+training/train/
+*.pth
+.DS_Store
