@@ -8,25 +8,19 @@ The goal is to train a model capable of generating synthetic car images similar 
 ## 📁 Project Structure
 
 ```
-gan-cars-project/
-├── data/                # Raw and processed image datasets
-│   ├── raw/
-│   └── processed/
-├── models/              # Generator and Discriminator model definitions
-│   ├── generator.py
-│   └── discriminator.py
-├── results/             # Generated images, checkpoints, loss plots
-│   ├── generated_images/
-│   ├── checkpoints/
-│   └── loss_curves/
-├── training/            # Training scripts
-│   ├── train_discriminator.py
-│   └── train_gan.py
-├── utils/               # Helper functions (image transforms, dataloaders)
-│   ├── dataset_loader.py
-│   └── image_utils.py
-├── README.md
-└── requirements.txt
+gan-cars/
+├── train_gan.py
+├── gan_discriminator.py
+├── system.py
+├── data/
+│   └── train/
+│       └── real/           ← Mettez vos images ici
+│           ├── car1.jpg
+│           ├── car2.jpg
+│           └── ...
+├── checkpoints/            ← Sera créé automatiquement
+├── generated_samples/      ← Sera créé automatiquement
+└── plots/                  ← Sera créé automatiquement
 ```
 
 ---
@@ -36,7 +30,7 @@ gan-cars-project/
 | Name      | Group | Git Branch |
 |-----------|--------|-------------|
 | Madjid    | B      | `madjid`    |
-| Nassim    | C      | `nassim`    |
+| Nassim    | B      | `nassim`    |
 | Hazem     | C      | `hazem`     |
 | Kim       | A      | `kim`       |
 
