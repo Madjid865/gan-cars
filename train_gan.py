@@ -18,36 +18,78 @@ import matplotlib.pyplot as plt
 
 from gan_discriminator import Discriminator
 
-# -----------------------
-# Générateur DCGAN (64x64)
-# -----------------------
+
+
 class Generator(nn.Module):
     """
-    DCGAN-like Generator (64x64, 3 canaux).
+    DCGAN-like Generator (64x64 ou 128x128, 3 canaux).
     Entrée: bruit z ~ N(0,1) de taille LATENT_DIM.
     """
-    def __init__(self, latent_dim: int = 100, img_channels: int = 3, base_ch: int = 64):
+    def __init__(self, latent_dim: int = 100, img_channels: int = 3,
+                 base_ch: int = 64, img_size: int = 64):
         super().__init__()
-        self.main = nn.Sequential(
-            nn.ConvTranspose2d(latent_dim, base_ch * 8, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(base_ch * 8),
-            nn.ReLU(True),
 
-            nn.ConvTranspose2d(base_ch * 8, base_ch * 4, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(base_ch * 4),
-            nn.ReLU(True),
+        if img_size == 64:
+            # Architecture d'origine 64x64
+            self.main = nn.Sequential(
+                # 1x1 -> 4x4
+                nn.ConvTranspose2d(latent_dim, base_ch * 8, 4, 1, 0, bias=False),
+                nn.BatchNorm2d(base_ch * 8),
+                nn.ReLU(True),
 
-            nn.ConvTranspose2d(base_ch * 4, base_ch * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(base_ch * 2),
-            nn.ReLU(True),
+                # 4x4 -> 8x8
+                nn.ConvTranspose2d(base_ch * 8, base_ch * 4, 4, 2, 1, bias=False),
+                nn.BatchNorm2d(base_ch * 4),
+                nn.ReLU(True),
 
-            nn.ConvTranspose2d(base_ch * 2, base_ch, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(base_ch),
-            nn.ReLU(True),
+                # 8x8 -> 16x16
+                nn.ConvTranspose2d(base_ch * 4, base_ch * 2, 4, 2, 1, bias=False),
+                nn.BatchNorm2d(base_ch * 2),
+                nn.ReLU(True),
 
-            nn.ConvTranspose2d(base_ch, img_channels, 4, 2, 1, bias=False),
-            nn.Tanh()  # [-1,1]
-        )
+                # 16x16 -> 32x32
+                nn.ConvTranspose2d(base_ch * 2, base_ch, 4, 2, 1, bias=False),
+                nn.BatchNorm2d(base_ch),
+                nn.ReLU(True),
+
+                # 32x32 -> 64x64
+                nn.ConvTranspose2d(base_ch, img_channels, 4, 2, 1, bias=False),
+                nn.Tanh()  # [-1,1]
+            )
+        elif img_size == 128:
+            # Nouvelle archi 128x128
+            self.main = nn.Sequential(
+                # 1x1 -> 4x4
+                nn.ConvTranspose2d(latent_dim, base_ch * 16, 4, 1, 0, bias=False),
+                nn.BatchNorm2d(base_ch * 16),
+                nn.ReLU(True),
+
+                # 4x4 -> 8x8
+                nn.ConvTranspose2d(base_ch * 16, base_ch * 8, 4, 2, 1, bias=False),
+                nn.BatchNorm2d(base_ch * 8),
+                nn.ReLU(True),
+
+                # 8x8 -> 16x16
+                nn.ConvTranspose2d(base_ch * 8, base_ch * 4, 4, 2, 1, bias=False),
+                nn.BatchNorm2d(base_ch * 4),
+                nn.ReLU(True),
+
+                # 16x16 -> 32x32
+                nn.ConvTranspose2d(base_ch * 4, base_ch * 2, 4, 2, 1, bias=False),
+                nn.BatchNorm2d(base_ch * 2),
+                nn.ReLU(True),
+
+                # 32x32 -> 64x64
+                nn.ConvTranspose2d(base_ch * 2, base_ch, 4, 2, 1, bias=False),
+                nn.BatchNorm2d(base_ch),
+                nn.ReLU(True),
+
+                # 64x64 -> 128x128
+                nn.ConvTranspose2d(base_ch, img_channels, 4, 2, 1, bias=False),
+                nn.Tanh()
+            )
+        else:
+            raise ValueError(f"img_size must be 64 or 128, got {img_size}")
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
         return self.main(z)
@@ -196,9 +238,10 @@ def load_loss_history(out_dir: str):
 # -----------------------
 # Plot des courbes
 # -----------------------
-def plot_losses(plots_dir: str, start_epoch: int, current_epoch: int, 
+
+"""def plot_losses(plots_dir: str, start_epoch: int, current_epoch: int, 
                 train_d, train_g, val_d, val_g):
-    """Génère et sauvegarde les graphiques de loss."""
+    
     epochs = range(start_epoch + 1, current_epoch + 1)
     
     # Discriminator
@@ -226,6 +269,38 @@ def plot_losses(plots_dir: str, start_epoch: int, current_epoch: int,
     g_path = f"{plots_dir}/loss_generator.png"
     plt.savefig(g_path, dpi=150, bbox_inches="tight")
     plt.close()
+"""
+def plot_losses(out_dir, start_epoch, end_epoch, train_d, train_g, val_d, val_g):
+    import matplotlib.pyplot as plt
+    import os
+
+    # Construire l’axe x à partir de la longueur des listes
+    n = max(len(train_d), len(train_g), len(val_d), len(val_g))
+    epochs = list(range(1, n + 1))
+
+    # Tronquer/aligner proprement (au cas où)
+    train_d = train_d[:n]
+    train_g = train_g[:n]
+    val_d   = val_d[:n]
+    val_g   = val_g[:n]
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    plt.figure(figsize=(8,5))
+    plt.plot(epochs, train_d, label="train D", linewidth=2)
+    plt.plot(epochs, val_d,   label="val D",   linewidth=2)
+    plt.xlabel("epoch"); plt.ylabel("loss"); plt.title("Discriminator")
+    plt.legend(); plt.grid(True)
+    plt.savefig(os.path.join(out_dir, "loss_discriminator.png"), dpi=150, bbox_inches="tight")
+    plt.close()
+
+    plt.figure(figsize=(8,5))
+    plt.plot(epochs, train_g, label="train G", linewidth=2)
+    plt.plot(epochs, val_g,   label="val G",   linewidth=2)
+    plt.xlabel("epoch"); plt.ylabel("loss"); plt.title("Generator")
+    plt.legend(); plt.grid(True)
+    plt.savefig(os.path.join(out_dir, "loss_generator.png"), dpi=150, bbox_inches="tight")
+    plt.close()
 
 # -------
 # Train
@@ -236,15 +311,18 @@ def main():
     os.makedirs(args.samples_dir, exist_ok=True)
     os.makedirs(args.plots_dir, exist_ok=True)
 
+    print(f"CUDA disponible: {torch.cuda.is_available()}")
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    
     torch.backends.cudnn.benchmark = True
 
     # Data
     train_loader, val_loader = make_loaders(args.data_root, args.img_size, args.batch_size, args.num_workers, args.val_ratio)
 
     # Modèles
-    G = Generator(args.latent_dim, 3, 64).to(device)
-    D = Discriminator(3, 64).to(device)
+    G = Generator(args.latent_dim, 3, 64, img_size=args.img_size).to(device)
+    D = Discriminator(3, 64, img_size=args.img_size).to(device)
+
 
     # Optim & loss (logits -> BCEWithLogits)
     opt_g = optim.AdamW(G.parameters(), lr=args.lr_g, betas=(args.beta1, args.beta2))
@@ -257,7 +335,7 @@ def main():
 
     # Bruit fixe pour suivi visuel
     torch.manual_seed(1337)
-    fixed_noise = torch.randn(64, args.latent_dim, 1, 1, device=device)
+    fixed_noise = torch.randn(16, args.latent_dim, 1, 1, device=device)
 
     # AUTO-REPRISE : Cherche automatiquement le dernier checkpoint
     start_epoch = 0
@@ -368,7 +446,7 @@ def main():
             G.eval()
             samples = G(fixed_noise).detach().cpu()
         vutils.save_image(samples, f"{args.samples_dir}/epoch_{epoch+1:03d}.png",
-                          nrow=8, normalize=True, value_range=(-1, 1))
+                          nrow=4, normalize=True, value_range=(-1, 1))
 
         # Checkpoint léger
         torch.save({
