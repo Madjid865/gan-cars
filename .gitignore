@@ -5,5 +5,5 @@ __pycache__/
 .env
 .vscode/
 .idea/
-results/
+*.pth
 

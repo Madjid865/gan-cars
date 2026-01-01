@@ -1,0 +1,19 @@
+# ============================================
+# Requirements for GAN Cars Project
+# ============================================
+# Install with: pip install -r requirements.txt
+
+# Core Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Data Processing & Visualization
+numpy>=1.24.0
+Pillow>=10.0.0
+matplotlib>=3.7.0
+
+# Interface Web (for 128x128 version)
+gradio>=4.0.0
+
+# Optional but recommended
+# tqdm  # Progress bars (if needed for training visualization)
