@@ -10,17 +10,18 @@ from gan_discriminator import Discriminator
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-def load_generator(weights: str, latent_dim: int = 100, img_size: int = 64) -> Generator:
-    G = Generator(latent_dim=latent_dim, img_channels=3, base_ch=64, img_size=img_size).to(device)
+def load_generator(weights: str, latent_dim: int = 100) -> Generator:
+    G = Generator(latent_dim=latent_dim, img_channels=3, base_ch=64).to(device)
     sd = torch.load(weights, map_location="cpu")
+    # accepter checkpoint (dict) ou poids bruts (state_dict)
     if isinstance(sd, dict) and "G" in sd:
         sd = sd["G"]
     G.load_state_dict(sd, strict=True)
     G.eval()
     return G
 
-def load_discriminator(weights: str, img_size: int = 64) -> Discriminator:
-    D = Discriminator(img_channels=3, base_ch=64, img_size=img_size).to(device)
+def load_discriminator(weights: str) -> Discriminator:
+    D = Discriminator(img_channels=3, base_ch=64).to(device)
     sd = torch.load(weights, map_location="cpu")
     if isinstance(sd, dict) and "D" in sd:
         sd = sd["D"]
@@ -28,11 +29,9 @@ def load_discriminator(weights: str, img_size: int = 64) -> Discriminator:
     D.eval()
     return D
 
-
 @torch.no_grad()
 def cmd_generate(args):
-    G = load_generator(args.gen, latent_dim=args.latent_dim, img_size=args.img_size)
-
+    G = load_generator(args.gen, latent_dim=args.latent_dim)
     torch.manual_seed(args.seed)
     z = torch.randn(args.n, args.latent_dim, 1, 1, device=device)
     imgs = G(z).cpu()
@@ -42,8 +41,7 @@ def cmd_generate(args):
 
 @torch.no_grad()
 def cmd_score(args):
-    D = load_discriminator(args.disc, img_size=args.img_size)
-
+    D = load_discriminator(args.disc)
 
     tfm = transforms.Compose([
         transforms.Resize((args.img_size, args.img_size)),
@@ -68,8 +66,6 @@ def get_args():
     g.add_argument("--nrow", type=int, default=4, help="images par ligne")
     g.add_argument("--latent_dim", type=int, default=100)
     g.add_argument("--seed", type=int, default=123)
-    g.add_argument("--img_size", type=int, default=64)
-
 
     s = sub.add_parser("score", help="Évaluer une image par le Discriminateur")
     s.add_argument("--disc", type=str, default="checkpoints/discriminator_final.pth",

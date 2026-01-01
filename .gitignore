@@ -1,3 +1,9 @@
-data/
+__pycache__/
+*.pyc
+*.pkl
+*.pt
+.env
+.vscode/
+.idea/
 *.pth
-.DS_Store
+
